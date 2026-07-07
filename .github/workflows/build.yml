@@ -19,14 +19,13 @@ jobs:
           git curl wget build-essential \
           clang llvm lld \
           libssl-dev zlib1g-dev \
-          dpkg-dev fakeroot
+          dpkg-dev fakeroot xz-utils
 
     - name: Install ldid
       run: |
         curl -L https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5/ldid_linux_x86_64 \
           -o /usr/local/bin/ldid
         chmod +x /usr/local/bin/ldid
-        ldid || true
 
     - name: Setup THEOS
       run: |
@@ -34,27 +33,21 @@ jobs:
         echo "THEOS=$HOME/theos" >> $GITHUB_ENV
         echo "$HOME/theos/bin" >> $GITHUB_PATH
 
-    - name: Download iOS 15 SDK
+    - name: Download iOS SDK
       run: |
         mkdir -p $HOME/theos/sdks
         cd $HOME/theos/sdks
-        echo "Downloading SDK..."
-        wget -q --show-progress \
-          "https://github.com/theos/sdks/releases/download/iPhoneOS15.8.3-SDK/iPhoneOS15.8.3.sdk.tar.lz" \
-          -O sdk.tar.lz 2>&1 || \
-        wget -q --show-progress \
-          "https://github.com/alexkalmuk/ios-sdks/releases/download/15.2/iPhoneOS15.2.sdk.tar.xz" \
-          -O sdk.tar.xz 2>&1 || true
 
-        if [ -f sdk.tar.lz ]; then
-          sudo apt-get install -y lzip
-          tar --lzip -xf sdk.tar.lz && rm sdk.tar.lz
-        elif [ -f sdk.tar.xz ]; then
-          tar -xf sdk.tar.xz && rm sdk.tar.xz
-        fi
+        echo "Tentando baixar SDK..."
+        wget -q "https://github.com/kamyarelyasi/iPhoneOS-SDKs/releases/download/15.0/iPhoneOS15.0.sdk.tar.xz" \
+          -O sdk.tar.xz 2>&1 && \
+        tar -xf sdk.tar.xz && \
+        rm sdk.tar.xz && \
+        echo "✅ SDK baixado com sucesso!" || \
+        echo "⚠️ SDK download falhou"
 
         echo "SDKs disponíveis:"
-        ls
+        ls -la
 
     - name: Build Font Changer
       continue-on-error: true
@@ -63,7 +56,7 @@ jobs:
         cd $GITHUB_WORKSPACE/FontChanger
         make clean
         make package 2>&1
-        find . -name "*.deb" -exec ls -lh {} \;
+        find . -name "*.deb" -exec ls -lh {} \; || true
 
     - name: Build JB Bypass
       continue-on-error: true
@@ -72,7 +65,7 @@ jobs:
         cd $GITHUB_WORKSPACE/JBBypass
         make clean
         make package 2>&1
-        find . -name "*.deb" -exec ls -lh {} \;
+        find . -name "*.deb" -exec ls -lh {} \; || true
 
     - name: Upload FontChanger
       uses: actions/upload-artifact@v4
