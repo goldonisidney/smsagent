@@ -7,14 +7,19 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-13
 
     steps:
     - uses: actions/checkout@v4
 
+    - name: Install ldid
+      run: |
+        curl -L https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5/ldid_macosx_x86_64 -o /usr/local/bin/ldid
+        chmod +x /usr/local/bin/ldid
+        ldid -version || echo "ldid installed"
+
     - name: Setup THEOS
       run: |
-        brew install ldid
         git clone --recursive https://github.com/theos/theos.git $HOME/theos
         echo "THEOS=$HOME/theos" >> $GITHUB_ENV
         echo "$HOME/theos/bin" >> $GITHUB_PATH
@@ -22,12 +27,12 @@ jobs:
     - name: Download iOS SDK
       run: |
         mkdir -p $HOME/theos/sdks
-        curl -L https://github.com/theos/sdks/releases/download/iPhoneOS15.8.3-SDK/iPhoneOS15.8.3.sdk.tar.lz \
-          -o $HOME/theos/sdks/sdk.tar.lz
         cd $HOME/theos/sdks
+        curl -L https://github.com/theos/sdks/releases/download/iPhoneOS15.8.3-SDK/iPhoneOS15.8.3.sdk.tar.lz -o sdk.tar.lz
         tar --lzip -xf sdk.tar.lz
         rm sdk.tar.lz
-        ls $HOME/theos/sdks
+        echo "SDKs disponíveis:"
+        ls
 
     - name: Build Tweak
       run: |
@@ -35,6 +40,11 @@ jobs:
         cd $GITHUB_WORKSPACE/FontChanger
         make clean
         make package
+
+    - name: List packages
+      run: |
+        echo "=== Arquivos gerados ==="
+        find $GITHUB_WORKSPACE -name "*.deb" -exec ls -lh {} \;
 
     - name: Upload DEB
       uses: actions/upload-artifact@v4
