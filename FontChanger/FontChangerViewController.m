@@ -1,4 +1,13 @@
 #import "FontChangerViewController.h"
+#import <spawn.h>
+
+extern char **environ;
+
+static void respringDevice(void) {
+    pid_t pid;
+    const char *args[] = {"killall", "-9", "SpringBoard", NULL};
+    posix_spawn(&pid, "/usr/bin/killall", NULL, NULL, (char *const *)args, environ);
+}
 
 @interface FontChangerViewController ()
 @property (nonatomic, strong) UITableView *tableView;
@@ -247,7 +256,7 @@
         preferredStyle:UIAlertControllerStyleAlert];
 
     [alert addAction:[UIAlertAction actionWithTitle:@"Aplicar e Respring" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) {
-        system("killall -9 SpringBoard");
+        respringDevice();
     }]];
 
     [alert addAction:[UIAlertAction actionWithTitle:@"Cancelar" style:UIAlertActionStyleCancel handler:nil]];
