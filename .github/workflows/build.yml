@@ -1,4 +1,4 @@
-name: Build JBBypass Tweak
+name: Build Font Changer Tweak
 
 on:
   push:
@@ -7,74 +7,25 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install dependencies
+    - name: Setup Theos
+      uses: Randomblock1/theos-action@v1
+
+    - name: Build Font Changer
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          git git-lfs curl wget \
-          clang llvm lld \
-          dpkg-dev fakeroot \
-          lzip xz-utils
-
-    - name: Install ldid
-      run: |
-        curl -L https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5/ldid_linux_x86_64 \
-          -o /usr/local/bin/ldid
-        chmod +x /usr/local/bin/ldid
-
-    - name: Setup THEOS
-      run: |
-        git clone --recursive https://github.com/theos/theos.git $HOME/theos
-        echo "THEOS=$HOME/theos" >> $GITHUB_ENV
-        echo "$HOME/theos/bin" >> $GITHUB_PATH
-
-    - name: Download iOS SDK
-      run: |
-        mkdir -p $HOME/theos/sdks
-        cd $HOME/theos/sdks
-
-        echo "=== Buscando SDK disponivel via API ==="
-        SDK_URL=$(curl -s https://api.github.com/repos/theos/sdks/releases \
-          | grep "browser_download_url" \
-          | head -1 \
-          | cut -d'"' -f4)
-        echo "URL encontrada: $SDK_URL"
-
-        if [ -n "$SDK_URL" ]; then
-          echo "Baixando SDK..."
-          curl -L -o sdk_file "$SDK_URL"
-          ls -lh sdk_file
-
-          case "$SDK_URL" in
-            *.tar.lz)
-              tar --lzip -xf sdk_file && rm sdk_file ;;
-            *.tar.xz)
-              tar -xJf sdk_file && rm sdk_file ;;
-            *.tar.gz)
-              tar -xzf sdk_file && rm sdk_file ;;
-          esac
-        fi
-
-        echo "=== SDKs disponíveis ==="
-        ls -la
-
-    - name: Build JBBypass
-      run: |
-        export THEOS=$HOME/theos
-        cd $GITHUB_WORKSPACE/JBBypass
-        make clean
-        make package
+        cd FontChanger
+        make package FINALPACKAGE=1
         echo "=== DEB gerado ==="
         find . -name "*.deb" -exec ls -lh {} \;
 
-    - name: Upload JBBypass
+    - name: Upload FontChanger DEB
       uses: actions/upload-artifact@v4
       with:
-        name: JBBypass-deb
-        path: JBBypass/packages/*.deb
+        name: FontChanger-deb
+        path: FontChanger/packages/*.deb
+        if-no-files-found: error
         retention-days: 30
