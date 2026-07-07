@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "Preparando instalação do SMS Agent..."
+exit 0

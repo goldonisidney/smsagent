@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "SMS Agent instalado com sucesso!"
+exit 0

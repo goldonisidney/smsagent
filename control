@@ -1,0 +1,9 @@
+Package: com.smsagent.tweak
+Name: SMS Agent
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: Tweak para enviar SMS em massa com interface gráfica
+Maintainer: User <user@example.com>
+Author: User
+Section: Tweaks
+Depends: mobilesubstrate
