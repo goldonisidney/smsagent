@@ -15,81 +15,50 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up build environment
+    - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
-          git curl wget python3 python3-dev \
-          build-essential clang llvm ldid \
-          libssl-dev libffi-dev dpkg-dev
+        sudo apt-get install -y git curl wget python3 python3-dev build-essential clang llvm ldid libssl-dev libffi-dev dpkg-dev
 
-    - name: Clone THEOS
+    - name: Setup THEOS
       run: |
         git clone --recursive https://github.com/theos/theos.git ~/theos
         echo "THEOS=~/theos" >> $GITHUB_ENV
-        echo "$HOME/theos/bin:$PATH" >> $GITHUB_PATH
+        echo "$HOME/theos/bin" >> $GITHUB_PATH
 
     - name: Download iOS SDK
       run: |
         mkdir -p ~/theos/sdks
         cd ~/theos/sdks
-        echo "Downloading iOS SDK..."
-        if ! wget -q --show-progress https://github.com/xybp888/iOS-SDKs/releases/download/15.8.3/iPhoneOS15.8.3.sdk.tar.xz -O sdk.tar.xz; then
-          echo "Primary SDK download failed, trying alternative..."
-          wget -q --show-progress https://github.com/theos/sdks/releases/download/iPhoneOS15.8.3-SDK/iPhoneOS15.8.3.sdk.tar.lz -O sdk.tar.lz 2>/dev/null || echo "Alternative also failed"
-        fi
-        if [ -f sdk.tar.xz ]; then
-          echo "Extracting SDK..."
-          tar -xf sdk.tar.xz 2>/dev/null && rm sdk.tar.xz && echo "SDK extracted successfully"
-        elif [ -f sdk.tar.lz ]; then
-          echo "Extracting SDK with lzip..."
-          tar -xf sdk.tar.lz 2>/dev/null && rm sdk.tar.lz && echo "SDK extracted successfully"
-        fi
-        echo "SDK directory contents:"
-        ls -la
+        wget -q https://github.com/xybp888/iOS-SDKs/releases/download/15.8.3/iPhoneOS15.8.3.sdk.tar.xz -O sdk.tar.xz || echo "SDK download skipped"
+        if [ -f sdk.tar.xz ]; then tar -xf sdk.tar.xz && rm sdk.tar.xz; fi
 
     - name: Build Tweak
       continue-on-error: true
       run: |
         export THEOS=~/theos
         cd $GITHUB_WORKSPACE
-        echo "=== Environment ==="
-        echo "THEOS=$THEOS"
-        echo "PATH=$PATH"
-        which make
-        which clang
-        echo ""
-        echo "=== Building ==="
         make clean
         make package FINALPACKAGENAME=com.smsagent.tweak_1.0.0_iphoneos-arm64.deb
-        echo ""
-        echo "=== Results ==="
-        find . -name '*.deb' -o -name '*.dylib' 2>/dev/null | head -20
+        find . -name '*.deb' | head -5
 
-    - name: Create fallback DEB
+    - name: Create Fallback DEB
       if: failure()
       run: |
-        echo "Compilation failed, creating fallback DEB..."
-        mkdir -p deb_fallback/DEBIAN
-        cat > deb_fallback/DEBIAN/control << 'EOF'
-Package: com.smsagent.tweak
-Name: SMS Agent
-Version: 1.0.0
-Architecture: iphoneos-arm64
-Description: Tweak para enviar SMS em massa com interface gráfica
-Maintainer: SMS Agent
-Author: SMS Agent
-Section: Tweaks
-Depends: mobilesubstrate
-EOF
-        cat > deb_fallback/DEBIAN/postinst << 'EOF'
-#!/bin/bash
-killall -9 SpringBoard 2>/dev/null || true
-exit 0
-EOF
-        chmod 755 deb_fallback/DEBIAN/postinst
-        chmod 644 deb_fallback/DEBIAN/control
-        dpkg-deb --root-owner-group -b deb_fallback com.smsagent.tweak_1.0.0_iphoneos-arm64.deb
+        mkdir -p deb/DEBIAN
+        echo "Package: com.smsagent.tweak" > deb/DEBIAN/control
+        echo "Name: SMS Agent" >> deb/DEBIAN/control
+        echo "Version: 1.0.0" >> deb/DEBIAN/control
+        echo "Architecture: iphoneos-arm64" >> deb/DEBIAN/control
+        echo "Description: SMS Agent Tweak" >> deb/DEBIAN/control
+        echo "Maintainer: SMS Agent" >> deb/DEBIAN/control
+        echo "Section: Tweaks" >> deb/DEBIAN/control
+        echo "Depends: mobilesubstrate" >> deb/DEBIAN/control
+        echo "#!/bin/bash" > deb/DEBIAN/postinst
+        echo "killall -9 SpringBoard 2>/dev/null || true" >> deb/DEBIAN/postinst
+        echo "exit 0" >> deb/DEBIAN/postinst
+        chmod 755 deb/DEBIAN/postinst
+        dpkg-deb --root-owner-group -b deb com.smsagent.tweak_1.0.0_iphoneos-arm64.deb
         ls -lh com.smsagent.tweak_1.0.0_iphoneos-arm64.deb
 
     - name: Upload Artifact
@@ -101,9 +70,4 @@ EOF
           packages/*.deb
           com.smsagent.tweak_1.0.0_iphoneos-arm64.deb
         retention-days: 30
-
-    - name: List final outputs
-      if: always()
-      run: |
-        echo "=== Final Outputs ==="
-        find $GITHUB_WORKSPACE -name '*.deb' -exec ls -lh {} \;
+        if-no-files-found: warn
