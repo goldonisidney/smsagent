@@ -1,8 +1,6 @@
 #import <UIKit/UIKit.h>
 #import <CoreText/CoreText.h>
 
-static NSString *selectedFontName = nil;
-
 static NSString* getSelectedFont() {
     return [[NSUserDefaults standardUserDefaults] stringForKey:@"com.fontchanger.selectedfont"] ?: @"";
 }
