@@ -1,0 +1,9 @@
+Package: com.jbbypass.tweak
+Name: JB Bypass
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: Bypassa detecção de jailbreak para apps próprios
+Maintainer: JBBypass
+Author: JBBypass
+Section: Tweaks
+Depends: mobilesubstrate
