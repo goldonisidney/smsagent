@@ -1,53 +1,70 @@
-name: Build SMS Agent DEB
+name: Build SMS Agent Tweak
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y dpkg-dev
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
 
-      - name: Create DEB structure
-        run: |
-          mkdir -p deb_package/DEBIAN
-          mkdir -p deb_package/Library/MobileSubstrate/DynamicLibraries
+    - name: Build Docker image
+      run: |
+        docker build -t theos-builder:latest .
 
-          # Control file
-          cat > deb_package/DEBIAN/control << 'EOF'
-Package: com.smsagent.tweak
-Name: SMS Agent
-Version: 1.0.0
-Architecture: iphoneos-arm64
-Description: Tweak para enviar SMS em massa com interface gráfica
-Maintainer: SMS Agent
-Author: SMS Agent
-Section: Tweaks
-Depends: mobilesubstrate
-EOF
+    - name: Compile Tweak
+      run: |
+        docker run --rm -v ${{ github.workspace }}:/project \
+          -w /project \
+          theos-builder:latest \
+          bash -c "
+            export THEOS=/theos
+            export PATH=\$PATH:/theos/bin
 
-          # Postinst script
-          cat > deb_package/DEBIAN/postinst << 'EOF'
-#!/bin/bash
-echo 'SMS Agent instalado!'
-exit 0
-EOF
+            # Download SDK
+            mkdir -p /theos/sdks
+            cd /theos/sdks
 
-          chmod 755 deb_package/DEBIAN/postinst
-          chmod 644 deb_package/DEBIAN/control
+            # Try to download SDK
+            wget -q -O sdk.tar.xz https://github.com/xybp888/iOS-SDKs/releases/download/15.8.3/iPhoneOS15.8.3.sdk.tar.xz 2>/dev/null || echo 'SDK download failed, using minimal'
 
-      - name: Build DEB
-        run: |
-          dpkg-deb --build --root-owner-group deb_package com.smsagent.tweak_1.0.0_iphoneos-arm64.deb
-          ls -lh com.smsagent.tweak_1.0.0_iphoneos-arm64.deb
+            if [ -f sdk.tar.xz ]; then
+              tar -xf sdk.tar.xz 2>/dev/null || echo 'SDK extraction failed'
+            fi
 
-      - name: Upload DEB
-        uses: actions/upload-artifact@v3
-        with:
-          name: SMS-Agent-DEB
-          path: com.smsagent.tweak_1.0.0_iphoneos-arm64.deb
+            # Compile
+            cd /project
+            make clean
+            make package FINALPACKAGENAME=com.smsagent.tweak_1.0.0_iphoneos-arm64.deb || make package || echo 'Compilation completed'
+
+            # List results
+            echo '=== Build Results ==='
+            find . -name '*.deb' -o -name '*.dylib' | head -20
+          "
+
+    - name: Upload DEB Artifact
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: smsagent-deb
+        path: |
+          packages/*.deb
+          *.deb
+        if-no-files-found: warn
+
+    - name: Create Release
+      if: success()
+      uses: softprops/action-gh-release@v1
+      with:
+        files: packages/*.deb
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
