@@ -1,4 +1,4 @@
-name: Build SMS Agent Tweak
+name: Build Font Changer Tweak
 
 on:
   push:
@@ -7,47 +7,38 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install dpkg-dev
-      run: sudo apt-get update && sudo apt-get install -y dpkg-dev
-
-    - name: Create DEB Package
+    - name: Setup THEOS
       run: |
-        mkdir -p deb_package/DEBIAN
+        brew install ldid
+        git clone --recursive https://github.com/theos/theos.git $HOME/theos
+        echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+        echo "$HOME/theos/bin" >> $GITHUB_PATH
 
-        cat > deb_package/DEBIAN/control << 'CONTROL'
-Package: com.smsagent.tweak
-Name: SMS Agent
-Version: 1.0.0
-Architecture: iphoneos-arm64
-Description: Tweak para enviar SMS em massa com interface gráfica
-Maintainer: SMS Agent
-Author: SMS Agent
-Section: Tweaks
-Depends: mobilesubstrate
-CONTROL
+    - name: Download iOS SDK
+      run: |
+        mkdir -p $HOME/theos/sdks
+        curl -L https://github.com/theos/sdks/releases/download/iPhoneOS15.8.3-SDK/iPhoneOS15.8.3.sdk.tar.lz \
+          -o $HOME/theos/sdks/sdk.tar.lz
+        cd $HOME/theos/sdks
+        tar --lzip -xf sdk.tar.lz
+        rm sdk.tar.lz
+        ls $HOME/theos/sdks
 
-        cat > deb_package/DEBIAN/postinst << 'POSTINST'
-#!/bin/bash
-killall -9 SpringBoard 2>/dev/null || true
-exit 0
-POSTINST
-
-        chmod 755 deb_package/DEBIAN/postinst
-        chmod 644 deb_package/DEBIAN/control
-
-        dpkg-deb --root-owner-group -b deb_package com.smsagent.tweak_1.0.0_iphoneos-arm64.deb
-
-        echo "=== DEB Created ==="
-        ls -lh com.smsagent.tweak_1.0.0_iphoneos-arm64.deb
+    - name: Build Tweak
+      run: |
+        export THEOS=$HOME/theos
+        cd $GITHUB_WORKSPACE/FontChanger
+        make clean
+        make package
 
     - name: Upload DEB
       uses: actions/upload-artifact@v4
       with:
-        name: smsagent-deb
-        path: com.smsagent.tweak_1.0.0_iphoneos-arm64.deb
+        name: fontchanger-deb
+        path: FontChanger/packages/*.deb
         retention-days: 30

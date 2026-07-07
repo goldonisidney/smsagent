@@ -1,0 +1,9 @@
+Package: com.fontchanger.tweak
+Name: Font Changer
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: Troca as fontes do sistema iOS com interface gráfica
+Maintainer: Font Changer
+Author: Font Changer
+Section: Tweaks
+Depends: mobilesubstrate
